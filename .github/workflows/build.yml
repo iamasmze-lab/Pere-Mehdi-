@@ -1,0 +1,58 @@
+name: Construire Pere Mehdi (EXE + APK)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dependances
+        run: |
+          pip install -r requirements.txt pyinstaller pillow
+      - name: Telecharger ffmpeg (pour le MP3)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip -OutFile ff.zip
+          Expand-Archive ff.zip -DestinationPath ff
+          Copy-Item (Get-ChildItem ff -Recurse -Filter ffmpeg.exe | Select-Object -First 1).FullName .\ffmpeg.exe
+      - name: Construire l'EXE
+        run: |
+          flet pack main.py --name "PereMehdi" --product-name "Pere Mehdi" --file-description "Telechargeur YouTube Facebook" --product-version 1.0.0 --add-binary "ffmpeg.exe;." -y
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PereMehdi-Windows
+          path: dist/PereMehdi.exe
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.29.2
+          channel: stable
+      - name: Dependances
+        run: pip install "flet[all]==0.28.3"
+      - name: Construire l'APK
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          flet build apk --project "PereMehdi" --product "Père Mehdi" --org km.peremehdi --build-version 1.0.0 --yes -v
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PereMehdi-Android
+          path: build/apk/*.apk
